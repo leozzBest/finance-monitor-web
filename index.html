@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="300">
+    <title>紫金矿业 日内监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            animation: fadeIn 0.6s ease-in;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.95;
+            margin-bottom: 20px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 25px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .nav-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .nav-button.active {
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .update-time {
+            font-size: 0.9em;
+            opacity: 0.85;
+            background: rgba(255,255,255,0.15);
+            padding: 8px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        .card, .backtest-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+            margin-bottom: 25px;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .stats-header {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-value.green {
+            color: #22c55e;
+        }
+
+        .stat-value.red {
+            color: #ef4444;
+        }
+
+        .signal-banner {
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            border: 3px solid;
+        }
+
+        .signal-banner.signal-buy {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border-color: #28a745;
+        }
+
+        .signal-banner.signal-sell {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border-color: #dc3545;
+        }
+
+        .signal-banner.signal-warning-buy {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border-color: #ffc107;
+        }
+
+        .signal-banner.signal-warning-sell {
+            background: linear-gradient(135deg, #ffe8cc 0%, #ffd89b 100%);
+            border-color: #ff9800;
+        }
+
+        .signal-banner.signal-hold {
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+            border-color: #718096;
+        }
+
+        .signal-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .signal-text {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .signal-reason {
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        .deviation-chart-wrapper {
+            background: #fff;
+            border-radius: 12px;
+            padding: 15px 15px 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #f0f0f0;
+        }
+
+        .deviation-title {
+            font-size: 0.85em;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .deviation-legend {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 400;
+            color: #777;
+            font-size: 0.95em;
+        }
+
+        .legend-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-left: 6px;
+        }
+
+        .green-dot { background: rgba(34,197,94,0.85); }
+        .red-dot   { background: rgba(239,68,68,0.85); }
+
+        .deviation-chart-container {
+            position: relative;
+            height: 140px;
+        }
+
+        .range-info {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .range-item {
+            text-align: center;
+        }
+
+        .range-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .range-value {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .range-value.high {
+            color: #ef4444;
+        }
+
+        .range-value.low {
+            color: #22c55e;
+        }
+
+        /* 回测相关样式 */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-header h3 {
+            font-size: 1.5em;
+            color: #333;
+            margin: 0;
+        }
+
+        .best-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .backtest-table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        .backtest-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95em;
+        }
+
+        .backtest-table th {
+            background: #f8f9fa;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .backtest-table td {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .backtest-table tr.profit {
+            background: #f0fdf4;
+        }
+
+        .backtest-table tr.loss {
+            background: #fef2f2;
+        }
+
+        .backtest-table tr.no-trade {
+            background: #f8f9fa;
+            color: #999;
+        }
+
+        .backtest-table .threshold {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .backtest-table .profit-rate {
+            font-weight: 600;
+        }
+
+        .backtest-table tr.profit .profit-rate,
+        .backtest-table tr.profit .profit-amount {
+            color: #22c55e;
+        }
+
+        .backtest-table tr.loss .profit-rate,
+        .backtest-table tr.loss .profit-amount {
+            color: #ef4444;
+        }
+
+        .backtest-note {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .backtest-note p {
+            margin: 5px 0;
+        }
+
+        .info-message {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.8;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            opacity: 0.9;
+        }
+
+        footer p {
+            margin: 8px 0;
+            font-size: 0.9em;
+        }
+
+        /* ── 操作面板 ─────────────────────────────── */
+        .trade-panel {
+            background: #fff;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        }
+        .trade-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+            font-weight: 700;
+            font-size: 1.05em;
+            color: #333;
+        }
+        .trade-config {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.85em;
+            color: #555;
+            flex-wrap: wrap;
+        }
+        .trade-config label { display: flex; align-items: center; gap: 4px; }
+        .trade-config input {
+            border: 1px solid #ddd; border-radius: 6px;
+            padding: 3px 6px; font-size: 0.9em;
+        }
+        .btn-cfg {
+            background: #6c757d; color: #fff;
+            border: none; border-radius: 6px;
+            padding: 4px 12px; cursor: pointer; font-size: 0.85em;
+        }
+        .btn-cfg:hover { background: #5a6268; }
+        .trade-status-row {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .pos-badge {
+            padding: 4px 14px; border-radius: 20px;
+            font-size: 0.85em; font-weight: 700;
+        }
+        .pos-empty { background: #f1f3f5; color: #868e96; }
+        .pos-long  { background: #d3f9d8; color: #2f9e44; }
+        .pos-detail { font-size: 0.85em; color: #555; }
+        .trade-btns {
+            display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+        }
+        .btn-trade {
+            flex: 1; min-width: 140px;
+            padding: 12px 20px; border: none; border-radius: 10px;
+            font-size: 1em; font-weight: 700; cursor: pointer;
+            transition: all .15s;
+        }
+        .btn-buy  { background: #2f9e44; color: #fff; }
+        .btn-buy:hover:not(:disabled)  { background: #237032; transform: translateY(-1px); }
+        .btn-sell { background: #e03131; color: #fff; }
+        .btn-sell:hover:not(:disabled) { background: #c92a2a; transform: translateY(-1px); }
+        .btn-trade:disabled { opacity: 0.4; cursor: not-allowed; }
+        .trade-result {
+            border-radius: 10px; padding: 12px 16px;
+            margin-bottom: 12px; font-size: 0.9em; line-height: 1.7;
+        }
+        .trade-result.win  { background: #d3f9d8; border-left: 4px solid #2f9e44; }
+        .trade-result.loss { background: #ffe3e3; border-left: 4px solid #e03131; }
+        .today-trades { font-size: 0.85em; }
+        .today-trades-title {
+            font-weight: 700; color: #555;
+            margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding-bottom: 6px;
+        }
+        .trade-record {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            padding: 8px 0; border-bottom: 1px dashed #f0f0f0;
+            align-items: center;
+        }
+        .trade-record:last-child { border-bottom: none; }
+        .tr-badge {
+            padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 700;
+        }
+        .tr-win  { background: #d3f9d8; color: #2f9e44; }
+        .tr-loss { background: #ffe3e3; color: #e03131; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            .stats-header {
+                grid-template-columns: 1fr;
+            }
+            .chart-container {
+                height: 300px;
+            }
+            .deviation-chart-container {
+                height: 110px;
+            }
+            .backtest-table {
+                font-size: 0.85em;
+            }
+            .backtest-table th, .backtest-table td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 紫金矿业 日内监控</h1>
+            <div class="subtitle">实时价格 · 成交均价(VWAP) · T+0策略回测</div>
+            
+            <div class="nav-buttons">
+                <a href="index.html" class="nav-button active">📈 实时监控</a>
+                <a href="history.html" class="nav-button">📅 历史回测</a>
+            </div>
+            
+            <div class="update-time">🔄 更新时间: 2026-03-10 12:40:03</div>
+        </header>
+
+        <div class="card">
+            <div class="stats-header">
+                <div class="stat-box">
+                    <div class="stat-label">当前价格</div>
+                    <div class="stat-value">¥37.06</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">成交均价(VWAP)</div>
+                    <div class="stat-value">¥37.18</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">偏离度</div>
+                    <div class="stat-value green">-0.31%</div>
+                </div>
+            </div>
+
+            <div class="signal-banner signal-hold">
+                <div class="signal-icon">⚪</div>
+                <div class="signal-text">持有观望</div>
+                <div class="signal-reason">价格接近日内均价 (-0.31%)</div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+
+            <div class="deviation-chart-wrapper">
+                <div class="deviation-title">
+                    📊 偏离度 (价格 vs VWAP%)
+                    <span class="deviation-legend">
+                        <span class="legend-dot green-dot"></span>低于VWAP → 买入参考
+                        <span class="legend-dot red-dot"></span>高于VWAP → 卖出参考
+                    </span>
+                </div>
+                <div class="deviation-chart-container">
+                    <canvas id="deviationChart"></canvas>
+                </div>
+            </div>
+
+            <div class="range-info">
+                <div class="range-item">
+                    <div class="range-label">最高价</div>
+                    <div class="range-value high">¥37.52</div>
+                    <div class="stat-sub">0953</div>
+                </div>
+                <div class="range-item">
+                    <div class="range-label">最低价</div>
+                    <div class="range-value low">¥36.82</div>
+                    <div class="stat-sub">0932</div>
+                </div>
+                <div class="range-item">
+                    <div class="range-label">数据点</div>
+                    <div class="range-value">121</div>
+                    <div class="stat-sub">0930 - 1130</div>
+                </div>
+            </div>
+        </div>
+
+        
+    <div class="backtest-card">
+        <div class="card-header">
+            <h3>🎯 T+0策略回测</h3>
+            <div class="best-badge">最佳: ±0.3% | +0.76%</div>
+        </div>
+        
+        <div class="backtest-table-container">
+            <table class="backtest-table">
+                <thead>
+                    <tr>
+                        <th>策略</th>
+                        <th>状态</th>
+                        <th>买入时间</th>
+                        <th>买入价</th>
+                        <th>卖出时间</th>
+                        <th>卖出价</th>
+                        <th>净收益率</th>
+                        <th>1000股净利</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+            <tr class="profit">
+                <td class="threshold">±0.3%</td>
+                <td class="status">✅ 完成</td>
+                <td class="time">0932</td>
+                <td class="price">¥36.82</td>
+                <td class="time">0936</td>
+                <td class="price">¥37.12</td>
+                <td class="profit-rate">+0.76%</td>
+                <td class="profit-amount">¥+281.51</td>
+            </tr>
+            
+            <tr class="no-trade">
+                <td class="threshold">±0.6%</td>
+                <td class="status" colspan="7">❌ 未完成交易</td>
+            </tr>
+            
+            <tr class="no-trade">
+                <td class="threshold">±0.9%</td>
+                <td class="status" colspan="7">❌ 未完成交易</td>
+            </tr>
+            
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="backtest-note">
+            <p>📌 策略说明: 当价格低于VWAP达阈值时买入，高于VWAP达阈值时卖出，每日一个来回</p>
+            <p>💰 手续费: 双向万分之2.5 (买入+卖出)</p>
+            <p>⚠️ 回测基于今日历史数据，仅供参考</p>
+        </div>
+    </div>
+    
+
+        <!-- ── 操作面板 ─────────────────────────────── -->
+        <div class="trade-panel" id="tradePanel">
+            <div class="trade-panel-header">
+                <span>🎯 T+0 操作记录</span>
+                <div class="trade-config">
+                    <label>阈值
+                        <input type="number" id="cfgThreshold" value="0.3" min="0.1" max="5" step="0.1" style="width:60px"> %
+                    </label>
+                    <label>持仓
+                        <input type="number" id="cfgQuantity" value="1000" min="100" step="100" style="width:70px"> 股
+                    </label>
+                    <button class="btn-cfg" onclick="saveConfig()">保存配置</button>
+                </div>
+            </div>
+
+            <div class="trade-status-row" id="tradeStatusRow">
+                <div id="positionBadge" class="pos-badge pos-empty">空仓</div>
+                <div id="positionDetail" class="pos-detail"></div>
+            </div>
+
+            <div class="trade-btns">
+                <button id="btnBuy"  class="btn-trade btn-buy"  onclick="doTrade('buy')">✅ 已买入（记录）</button>
+                <button id="btnSell" class="btn-trade btn-sell" onclick="doTrade('sell')" disabled>🔴 已卖出（记录）</button>
+            </div>
+
+            <div id="tradeResult" class="trade-result" style="display:none"></div>
+
+            <div id="todayTrades" class="today-trades"></div>
+        </div>
+
+        <footer>
+            <p>💡 页面每5分钟自动刷新 | 数据来源: 腾讯财经分钟K线</p>
+            <p>📊 策略: 偏离成交均价(VWAP)±0.3%触发通知 | ±0.3% / ±0.6% / ±0.9%回测对比</p>
+            <p>⚠️ 仅供参考，不构成投资建议 · 投资有风险，决策需谨慎</p>
+        </footer>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['0930', '0931', '0932', '0933', '0934', '0935', '0936', '0937', '0938', '0939', '0940', '0941', '0942', '0943', '0944', '0945', '0946', '0947', '0948', '0949', '0950', '0951', '0952', '0953', '0954', '0955', '0956', '0957', '0958', '0959', '1000', '1001', '1002', '1003', '1004', '1005', '1006', '1007', '1008', '1009', '1010', '1011', '1012', '1013', '1014', '1015', '1016', '1017', '1018', '1019', '1020', '1021', '1022', '1023', '1024', '1025', '1026', '1027', '1028', '1029', '1030', '1031', '1032', '1033', '1034', '1035', '1036', '1037', '1038', '1039', '1040', '1041', '1042', '1043', '1044', '1045', '1046', '1047', '1048', '1049', '1050', '1051', '1052', '1053', '1054', '1055', '1056', '1057', '1058', '1059', '1100', '1101', '1102', '1103', '1104', '1105', '1106', '1107', '1108', '1109', '1110', '1111', '1112', '1113', '1114', '1115', '1116', '1117', '1118', '1119', '1120', '1121', '1122', '1123', '1124', '1125', '1126', '1127', '1128', '1129', '1130'],
+                datasets: [
+                    {
+                        label: '实时价格',
+                        data: [36.98, 37.09, 36.82, 37.03, 36.92, 36.96, 37.12, 37.09, 37.13, 37.27, 37.17, 37.19, 37.14, 37.2, 37.23, 37.21, 37.34, 37.32, 37.38, 37.43, 37.33, 37.32, 37.37, 37.52, 37.43, 37.48, 37.44, 37.44, 37.46, 37.46, 37.42, 37.44, 37.36, 37.26, 37.23, 37.29, 37.26, 37.35, 37.35, 37.23, 37.2, 37.23, 37.18, 37.25, 37.28, 37.28, 37.29, 37.36, 37.4, 37.41, 37.4, 37.41, 37.37, 37.33, 37.34, 37.3, 37.24, 37.24, 37.23, 37.19, 37.15, 37.15, 37.16, 37.17, 37.13, 37.12, 37.06, 37.1, 37.09, 37.1, 37.12, 37.18, 37.19, 37.17, 37.13, 37.1, 37.11, 37.13, 37.09, 37.1, 37.08, 37.09, 37.1, 37.07, 37.03, 37.02, 36.95, 37.0, 37.03, 37.01, 37.01, 37.05, 37.14, 37.1, 37.08, 37.07, 37.04, 37.03, 37.08, 37.07, 37.06, 37.01, 37.01, 37.0, 36.97, 36.95, 36.93, 36.97, 36.99, 37.04, 37.01, 36.98, 37.0, 36.99, 36.99, 36.99, 37.02, 37.02, 37.02, 37.02, 37.06],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true,
+                        pointRadius: 0
+                    },
+                    {
+                        label: '成交均价(VWAP)',
+                        data: [36.98, 36.98, 36.98, 36.97, 36.97, 36.97, 36.98, 37.00, 37.00, 37.02, 37.03, 37.04, 37.04, 37.05, 37.06, 37.06, 37.08, 37.09, 37.10, 37.11, 37.12, 37.12, 37.13, 37.15, 37.16, 37.17, 37.17, 37.17, 37.18, 37.19, 37.19, 37.19, 37.19, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.20, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.21, 37.20, 37.20, 37.20, 37.20, 37.20, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.19, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18, 37.18],
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 14
+                            },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += '¥' + context.parsed.y.toFixed(2);
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            maxTicksLimit: 12,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    y: {
+                        position: 'right',
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '¥' + value.toFixed(2);
+                            },
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // ── 偏离度柱状图 ──────────────────────────────────
+        const devCtx = document.getElementById('deviationChart').getContext('2d');
+        const devData = [0.0, 0.288, -0.42, 0.16, -0.144, -0.03, 0.372, 0.247, 0.344, 0.671, 0.374, 0.41, 0.265, 0.409, 0.467, 0.399, 0.711, 0.621, 0.76, 0.869, 0.571, 0.532, 0.655, 0.99, 0.725, 0.847, 0.726, 0.717, 0.762, 0.737, 0.62, 0.668, 0.445, 0.171, 0.089, 0.248, 0.165, 0.404, 0.399, 0.075, -0.007, 0.074, -0.06, 0.128, 0.208, 0.207, 0.233, 0.418, 0.522, 0.546, 0.515, 0.537, 0.426, 0.315, 0.34, 0.23, 0.068, 0.068, 0.041, -0.066, -0.173, -0.171, -0.144, -0.116, -0.222, -0.248, -0.404, -0.295, -0.32, -0.292, -0.237, -0.075, -0.048, -0.101, -0.208, -0.288, -0.259, -0.205, -0.311, -0.283, -0.336, -0.307, -0.28, -0.358, -0.462, -0.487, -0.658, -0.52, -0.438, -0.49, -0.489, -0.38, -0.136, -0.243, -0.296, -0.322, -0.402, -0.428, -0.293, -0.319, -0.345, -0.478, -0.477, -0.501, -0.58, -0.631, -0.681, -0.571, -0.517, -0.379, -0.459, -0.538, -0.483, -0.509, -0.508, -0.507, -0.424, -0.423, -0.423, -0.422, -0.314];
+        const devColors = ['rgba(239,68,68,0.30)', 'rgba(239,68,68,0.44)', 'rgba(34,197,94,0.51)', 'rgba(239,68,68,0.38)', 'rgba(34,197,94,0.37)', 'rgba(34,197,94,0.32)', 'rgba(239,68,68,0.49)', 'rgba(239,68,68,0.42)', 'rgba(239,68,68,0.47)', 'rgba(239,68,68,0.64)', 'rgba(239,68,68,0.49)', 'rgba(239,68,68,0.51)', 'rgba(239,68,68,0.43)', 'rgba(239,68,68,0.50)', 'rgba(239,68,68,0.53)', 'rgba(239,68,68,0.50)', 'rgba(239,68,68,0.66)', 'rgba(239,68,68,0.61)', 'rgba(239,68,68,0.68)', 'rgba(239,68,68,0.73)', 'rgba(239,68,68,0.59)', 'rgba(239,68,68,0.57)', 'rgba(239,68,68,0.63)', 'rgba(239,68,68,0.79)', 'rgba(239,68,68,0.66)', 'rgba(239,68,68,0.72)', 'rgba(239,68,68,0.66)', 'rgba(239,68,68,0.66)', 'rgba(239,68,68,0.68)', 'rgba(239,68,68,0.67)', 'rgba(239,68,68,0.61)', 'rgba(239,68,68,0.63)', 'rgba(239,68,68,0.52)', 'rgba(239,68,68,0.39)', 'rgba(239,68,68,0.34)', 'rgba(239,68,68,0.42)', 'rgba(239,68,68,0.38)', 'rgba(239,68,68,0.50)', 'rgba(239,68,68,0.50)', 'rgba(239,68,68,0.34)', 'rgba(34,197,94,0.30)', 'rgba(239,68,68,0.34)', 'rgba(34,197,94,0.33)', 'rgba(239,68,68,0.36)', 'rgba(239,68,68,0.40)', 'rgba(239,68,68,0.40)', 'rgba(239,68,68,0.42)', 'rgba(239,68,68,0.51)', 'rgba(239,68,68,0.56)', 'rgba(239,68,68,0.57)', 'rgba(239,68,68,0.56)', 'rgba(239,68,68,0.57)', 'rgba(239,68,68,0.51)', 'rgba(239,68,68,0.46)', 'rgba(239,68,68,0.47)', 'rgba(239,68,68,0.41)', 'rgba(239,68,68,0.33)', 'rgba(239,68,68,0.33)', 'rgba(239,68,68,0.32)', 'rgba(34,197,94,0.33)', 'rgba(34,197,94,0.39)', 'rgba(34,197,94,0.39)', 'rgba(34,197,94,0.37)', 'rgba(34,197,94,0.36)', 'rgba(34,197,94,0.41)', 'rgba(34,197,94,0.42)', 'rgba(34,197,94,0.50)', 'rgba(34,197,94,0.45)', 'rgba(34,197,94,0.46)', 'rgba(34,197,94,0.45)', 'rgba(34,197,94,0.42)', 'rgba(34,197,94,0.34)', 'rgba(34,197,94,0.32)', 'rgba(34,197,94,0.35)', 'rgba(34,197,94,0.40)', 'rgba(34,197,94,0.44)', 'rgba(34,197,94,0.43)', 'rgba(34,197,94,0.40)', 'rgba(34,197,94,0.46)', 'rgba(34,197,94,0.44)', 'rgba(34,197,94,0.47)', 'rgba(34,197,94,0.45)', 'rgba(34,197,94,0.44)', 'rgba(34,197,94,0.48)', 'rgba(34,197,94,0.53)', 'rgba(34,197,94,0.54)', 'rgba(34,197,94,0.63)', 'rgba(34,197,94,0.56)', 'rgba(34,197,94,0.52)', 'rgba(34,197,94,0.54)', 'rgba(34,197,94,0.54)', 'rgba(34,197,94,0.49)', 'rgba(34,197,94,0.37)', 'rgba(34,197,94,0.42)', 'rgba(34,197,94,0.45)', 'rgba(34,197,94,0.46)', 'rgba(34,197,94,0.50)', 'rgba(34,197,94,0.51)', 'rgba(34,197,94,0.45)', 'rgba(34,197,94,0.46)', 'rgba(34,197,94,0.47)', 'rgba(34,197,94,0.54)', 'rgba(34,197,94,0.54)', 'rgba(34,197,94,0.55)', 'rgba(34,197,94,0.59)', 'rgba(34,197,94,0.62)', 'rgba(34,197,94,0.64)', 'rgba(34,197,94,0.59)', 'rgba(34,197,94,0.56)', 'rgba(34,197,94,0.49)', 'rgba(34,197,94,0.53)', 'rgba(34,197,94,0.57)', 'rgba(34,197,94,0.54)', 'rgba(34,197,94,0.55)', 'rgba(34,197,94,0.55)', 'rgba(34,197,94,0.55)', 'rgba(34,197,94,0.51)', 'rgba(34,197,94,0.51)', 'rgba(34,197,94,0.51)', 'rgba(34,197,94,0.51)', 'rgba(34,197,94,0.46)'];
+
+        new Chart(devCtx, {
+            type: 'bar',
+            data: {
+                labels: ['0930', '0931', '0932', '0933', '0934', '0935', '0936', '0937', '0938', '0939', '0940', '0941', '0942', '0943', '0944', '0945', '0946', '0947', '0948', '0949', '0950', '0951', '0952', '0953', '0954', '0955', '0956', '0957', '0958', '0959', '1000', '1001', '1002', '1003', '1004', '1005', '1006', '1007', '1008', '1009', '1010', '1011', '1012', '1013', '1014', '1015', '1016', '1017', '1018', '1019', '1020', '1021', '1022', '1023', '1024', '1025', '1026', '1027', '1028', '1029', '1030', '1031', '1032', '1033', '1034', '1035', '1036', '1037', '1038', '1039', '1040', '1041', '1042', '1043', '1044', '1045', '1046', '1047', '1048', '1049', '1050', '1051', '1052', '1053', '1054', '1055', '1056', '1057', '1058', '1059', '1100', '1101', '1102', '1103', '1104', '1105', '1106', '1107', '1108', '1109', '1110', '1111', '1112', '1113', '1114', '1115', '1116', '1117', '1118', '1119', '1120', '1121', '1122', '1123', '1124', '1125', '1126', '1127', '1128', '1129', '1130'],
+                datasets: [{
+                    label: '偏离度(%)',
+                    data: devData,
+                    backgroundColor: devColors,
+                    borderColor: devColors,
+                    borderWidth: 0,
+                    borderRadius: 2,
+                    barPercentage: 0.9,
+                    categoryPercentage: 1.0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.75)',
+                        padding: 8,
+                        callbacks: {
+                            title: function(items) {
+                                return items[0].label;
+                            },
+                            label: function(ctx) {
+                                const v = ctx.parsed.y;
+                                const arrow = v >= 0 ? '▲ 高于VWAP' : '▼ 低于VWAP';
+                                return arrow + '  ' + (v >= 0 ? '+' : '') + v.toFixed(3) + '%';
+                            },
+                            afterLabel: function(ctx) {
+                                const v = ctx.parsed.y;
+                                if (v <= -0.3) return '💡 参考买入信号';
+                                if (v >= 0.3)  return '💡 参考卖出信号';
+                                return '';
+                            }
+                        }
+                    },
+                    annotation: { annotations: {} }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxTicksLimit: 10,
+                            font: { size: 10 },
+                            color: '#aaa'
+                        }
+                    },
+                    y: {
+                        position: 'right',
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                            font: { size: 10 },
+                            color: '#aaa',
+                            callback: function(v) {
+                                return (v >= 0 ? '+' : '') + v.toFixed(2) + '%';
+                            }
+                        },
+                        afterDataLimits: function(scale) {
+                            // 对称轴，正负等宽
+                            const max = Math.max(Math.abs(scale.min), Math.abs(scale.max), 0.5);
+                            scale.min = -max;
+                            scale.max =  max;
+                        }
+                    }
+                }
+            }
+        });
+
+        // ── 操作面板逻辑 ─────────────────────────────────────
+        const API = 'http://127.0.0.1:18899';
+        let currentPrice = 37.06;
+        let currentVwap  = 37.17660540981734;
+
+        // 初始化：加载当前状态
+        async function loadState() {
+            try {
+                const r = await fetch(API + '/api/state', {signal: AbortSignal.timeout(2000)});
+                const s = await r.json();
+                renderState(s);
+            } catch(e) {
+                document.getElementById('positionBadge').textContent = '本地服务未启动';
+                document.getElementById('positionBadge').className = 'pos-badge pos-empty';
+            }
+        }
+
+        function renderState(s) {
+            const badge  = document.getElementById('positionBadge');
+            const detail = document.getElementById('positionDetail');
+            const btnBuy  = document.getElementById('btnBuy');
+            const btnSell = document.getElementById('btnSell');
+
+            // 同步配置到输入框
+            if (s.threshold) document.getElementById('cfgThreshold').value = s.threshold;
+            if (s.quantity)  document.getElementById('cfgQuantity').value  = s.quantity;
+
+            if (s.position === 'long') {
+                badge.textContent = '📈 持仓中';
+                badge.className = 'pos-badge pos-long';
+                const cost  = s.buy_price * s.quantity;
+                const now   = currentPrice * s.quantity;
+                const pnl   = (now - cost) * (1 - 0.0005);
+                const pnlPct= (currentPrice - s.buy_price) / s.buy_price * 100;
+                const sign  = pnl >= 0 ? '+' : '';
+                detail.innerHTML = `买入 ¥${s.buy_price?.toFixed(2)} × ${s.quantity}股
+                    &nbsp;|&nbsp; 当前价 ¥${currentPrice.toFixed(2)}
+                    &nbsp;|&nbsp; 浮盈 <b style="color:${pnl>=0?'#2f9e44':'#e03131'}">${sign}¥${pnl.toFixed(0)}(${sign}${pnlPct.toFixed(2)}%)</b>
+                    &nbsp;|&nbsp; ${s.buy_time?.substring(11,16)}入场`;
+                btnBuy.disabled  = true;
+                btnSell.disabled = false;
+            } else {
+                badge.textContent = '空仓';
+                badge.className = 'pos-badge pos-empty';
+                detail.textContent = '等待买入信号...';
+                btnBuy.disabled  = false;
+                btnSell.disabled = true;
+            }
+
+            renderTrades(s.today_trades || []);
+        }
+
+        function renderTrades(trades) {
+            const el = document.getElementById('todayTrades');
+            if (!trades.length) { el.innerHTML = ''; return; }
+
+            const total = trades.reduce((s,t) => s + t.net_pnl, 0);
+            const sign  = total >= 0 ? '+' : '';
+            let html = `<div class="today-trades-title">
+                今日操作 ${trades.length} 笔 &nbsp;|&nbsp;
+                累计净收益: <b style="color:${total>=0?'#2f9e44':'#e03131'}">${sign}¥${total.toFixed(2)}</b>
+            </div>`;
+
+            trades.forEach((t,i) => {
+                const win  = t.net_pnl >= 0;
+                const sign = win ? '+' : '';
+                html += `<div class="trade-record">
+                    <span class="tr-badge ${win?'tr-win':'tr-loss'}">#${i+1} ${win?'盈':'亏'}</span>
+                    <span>${t.buy_time?.substring(11,16)}买入 ¥${t.buy_price?.toFixed(2)}</span>
+                    <span>→ ${t.sell_time?.substring(11,16)}卖出 ¥${t.sell_price?.toFixed(2)}</span>
+                    <b style="color:${win?'#2f9e44':'#e03131'}">${sign}¥${t.net_pnl?.toFixed(2)}(${sign}${t.pnl_pct?.toFixed(3)}%)</b>
+                    <span style="color:#aaa;font-size:.8em">手续费¥${t.fee?.toFixed(2)}</span>
+                </div>`;
+            });
+            el.innerHTML = html;
+        }
+
+        async function doTrade(type) {
+            const btn = document.getElementById(type === 'buy' ? 'btnBuy' : 'btnSell');
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                const r = await fetch(API + '/api/' + type, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        price: currentPrice,
+                        vwap:  currentVwap,
+                        quantity: parseInt(document.getElementById('cfgQuantity').value) || 1000
+                    })
+                });
+                const result = await r.json();
+
+                if (result.ok) {
+                    const el = document.getElementById('tradeResult');
+                    el.style.display = 'block';
+                    if (type === 'buy') {
+                        el.className = 'trade-result win';
+                        el.innerHTML = `✅ <b>买入已记录</b> &nbsp; 价格 ¥${currentPrice.toFixed(2)} &nbsp; VWAP ¥${currentVwap.toFixed(2)} &nbsp; 偏离 ${((currentPrice-currentVwap)/currentVwap*100).toFixed(3)}%`;
+                    } else {
+                        const t   = result.trade;
+                        const win = t.net_pnl >= 0;
+                        el.className = 'trade-result ' + (win ? 'win' : 'loss');
+                        el.innerHTML = `${win?'✅':'⚠️'} <b>卖出已记录</b> &nbsp;
+                            买入¥${t.buy_price?.toFixed(2)} → 卖出¥${t.sell_price?.toFixed(2)} &nbsp;|&nbsp;
+                            净收益 <b style="color:${win?'#2f9e44':'#e03131'}">${win?'+':''}¥${t.net_pnl?.toFixed(2)}(${win?'+':''}${t.pnl_pct?.toFixed(3)}%)</b> &nbsp;|&nbsp;
+                            手续费¥${t.fee?.toFixed(2)}`;
+                    }
+                    setTimeout(loadState, 300);
+                } else {
+                    alert('操作失败: ' + (result.error || '未知错误'));
+                }
+            } catch(e) {
+                alert('❌ 连接本地服务失败，请确认服务已启动\n\n本地服务端口: 18899\n启动命令:\npython3 /root/.openclaw/workspace/trade_api_server.py &');
+            }
+            btn.disabled = false;
+            btn.textContent = type === 'buy' ? '✅ 已买入（记录）' : '🔴 已卖出（记录）';
+        }
+
+        async function saveConfig() {
+            const threshold = parseFloat(document.getElementById('cfgThreshold').value);
+            const quantity  = parseInt(document.getElementById('cfgQuantity').value);
+            try {
+                const r = await fetch(API + '/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({threshold, quantity})
+                });
+                const result = await r.json();
+                if (result.ok) {
+                    alert(`✅ 配置已保存\n阈值: ${result.threshold}%\n持仓: ${result.quantity}股\n推送通知将使用新阈值`);
+                }
+            } catch(e) {
+                alert('❌ 连接本地服务失败，请启动服务');
+            }
+        }
+
+        // 页面加载时获取状态
+        loadState();
+        // 每30秒刷新一次持仓状态
+        setInterval(loadState, 30000);
+    </script>
+</body>
+</html>
